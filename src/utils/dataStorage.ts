@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 export interface MachineRecord {
@@ -233,6 +232,66 @@ export const getCompletedMachines = (startDate: Date, endDate: Date): any[] => {
 export const getMachineJourney = (barcodeId: string): MachineJourney | null => {
   const db = getDatabase();
   return db.machines[barcodeId] || null;
+};
+
+// Delete a machine from the system
+export const deleteMachine = (barcodeId: string): boolean => {
+  const db = getDatabase();
+  
+  if (!db.machines[barcodeId]) {
+    toast.error(`Machine ${barcodeId} not found in the system`);
+    return false;
+  }
+  
+  // Delete the machine from the database
+  delete db.machines[barcodeId];
+  
+  // Save the updated database
+  saveDatabase(db);
+  
+  toast.success(`Machine ${barcodeId} has been deleted from the system`);
+  return true;
+};
+
+// Export database to JSON file for backup
+export const exportDatabase = (): void => {
+  const db = getDatabase();
+  const dataStr = JSON.stringify(db);
+  const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
+  
+  const exportFileName = `sewing-machine-data-${new Date().toISOString().split('T')[0]}.json`;
+  
+  const downloadLink = document.createElement('a');
+  downloadLink.setAttribute('href', dataUri);
+  downloadLink.setAttribute('download', exportFileName);
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+  
+  toast.success('Database exported successfully');
+};
+
+// Import database from JSON file
+export const importDatabase = (jsonData: string): boolean => {
+  try {
+    const parsedData = JSON.parse(jsonData) as Database;
+    
+    // Basic validation
+    if (!parsedData.machines || !parsedData.lastUpdated) {
+      toast.error('Invalid database format');
+      return false;
+    }
+    
+    // Save the imported data
+    localStorage.setItem(STORAGE_KEY, jsonData);
+    
+    toast.success('Database imported successfully');
+    return true;
+  } catch (error) {
+    console.error('Error importing database:', error);
+    toast.error('Failed to import database');
+    return false;
+  }
 };
 
 // Clear all data (for testing/development only)

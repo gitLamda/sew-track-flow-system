@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock } from "lucide-react";
+import { Clock, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface QueueItem {
@@ -19,12 +19,14 @@ interface QueueDisplayProps {
   queue: QueueItem[];
   currentBarcodeId?: string | null;
   onSelectMachine?: (barcodeId: string) => void;
+  onDeleteMachine?: (barcodeId: string) => void;
 }
 
 const QueueDisplay: React.FC<QueueDisplayProps> = ({ 
   queue, 
   currentBarcodeId,
-  onSelectMachine
+  onSelectMachine,
+  onDeleteMachine
 }) => {
   // Format the check-in time
   const formatTime = (timeString: string): string => {
@@ -92,15 +94,27 @@ const QueueDisplay: React.FC<QueueDisplayProps> = ({
                         {formatWaitTime(item.waitTime)}
                       </span>
                     </div>
-                    {onSelectMachine && item.barcodeId !== currentBarcodeId && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => onSelectMachine(item.barcodeId)}
-                      >
-                        Select
-                      </Button>
-                    )}
+                    <div className="flex gap-1">
+                      {onSelectMachine && item.barcodeId !== currentBarcodeId && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => onSelectMachine(item.barcodeId)}
+                        >
+                          Select
+                        </Button>
+                      )}
+                      {onDeleteMachine && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => onDeleteMachine(item.barcodeId)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </li>

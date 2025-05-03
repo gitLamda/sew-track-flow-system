@@ -1,11 +1,14 @@
 
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import WorkstationInterface from "@/components/WorkstationInterface";
 import DataViewer from "@/components/DataViewer";
 import { workstationTasks } from "@/data/workstationTasks";
+import { exportDatabase, importDatabase } from "@/utils/dataStorage";
 import { toast } from "sonner";
+import { Download, Upload } from "lucide-react";
 
 const Index: React.FC = () => {
   const [activeWorkstation, setActiveWorkstation] = useState<number>(1);
@@ -13,9 +16,57 @@ const Index: React.FC = () => {
   // Get the workstation configuration for the active workstation
   const workstation = workstationTasks.find(ws => ws.stationNumber === activeWorkstation)!;
 
+  // Handle database import
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const jsonData = e.target?.result as string;
+        const success = importDatabase(jsonData);
+        
+        if (success) {
+          // Refresh the page to load the imported data
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error("Error reading file:", error);
+        toast.error("Failed to read the import file");
+      }
+    };
+    reader.readAsText(file);
+    
+    // Clear the input value so the same file can be selected again
+    event.target.value = '';
+  };
+
   return (
     <div className="container py-6 mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Sewing Machine Service Tracking System</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h1 className="text-3xl font-bold">Sewing Machine Service Tracking System</h1>
+        
+        <div className="flex mt-2 sm:mt-0 space-x-2">
+          <Button variant="outline" size="sm" onClick={exportDatabase}>
+            <Download className="h-4 w-4 mr-2" />
+            Backup Data
+          </Button>
+          <div className="relative">
+            <input
+              type="file"
+              id="import-file"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              accept=".json"
+              onChange={handleImport}
+            />
+            <Button variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" />
+              Restore Data
+            </Button>
+          </div>
+        </div>
+      </div>
       
       <Tabs 
         defaultValue="workstation" 
@@ -56,6 +107,36 @@ const Index: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="reports">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Data Management</CardTitle>
+              <CardDescription>
+                Export your data to keep a backup or import previous data to restore it
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4">
+                <Button variant="secondary" onClick={exportDatabase}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Data Backup
+                </Button>
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="import-file-large"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    accept=".json"
+                    onChange={handleImport}
+                  />
+                  <Button variant="secondary">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import Data from Backup
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
           <DataViewer />
         </TabsContent>
       </Tabs>

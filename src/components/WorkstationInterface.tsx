@@ -19,11 +19,23 @@ import {
   checkInMachine, 
   checkOutMachine, 
   getQueueForWorkstation, 
-  getMachineJourney 
+  getMachineJourney,
+  deleteMachine
 } from "@/utils/dataStorage";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Check, Info, Plus } from "lucide-react";
+import { AlertTriangle, Check, Info, Plus, Trash } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface WorkstationInterfaceProps {
   workstation: WorkstationConfig;
@@ -37,6 +49,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [queue, setQueue] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState<boolean>(false);
+  const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
   
   // Load queue data on mount and when queue changes
   useEffect(() => {
@@ -52,6 +65,27 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     
     return () => clearInterval(intervalId);
   }, [workstation.stationNumber, activeMachine]);
+  
+  // Load operator info from localStorage if available
+  useEffect(() => {
+    const savedOperator = localStorage.getItem('operatorInfo');
+    if (savedOperator) {
+      try {
+        const { name, epf } = JSON.parse(savedOperator);
+        setOperatorName(name || '');
+        setOperatorEPF(epf || '');
+      } catch (e) {
+        console.error('Error loading operator info:', e);
+      }
+    }
+  }, []);
+  
+  // Save operator info when it changes
+  useEffect(() => {
+    if (operatorName && operatorEPF) {
+      localStorage.setItem('operatorInfo', JSON.stringify({ name: operatorName, epf: operatorEPF }));
+    }
+  }, [operatorName, operatorEPF]);
   
   // Handle barcode scan
   const handleBarcodeScan = (barcode: string) => {
@@ -194,6 +228,26 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     }
   };
 
+  // Handle delete machine
+  const handleDeleteMachine = () => {
+    if (!machineToDelete) return;
+    
+    const success = deleteMachine(machineToDelete);
+    
+    if (success) {
+      // If the deleted machine was active, clear it
+      if (activeMachine === machineToDelete) {
+        setActiveMachine(null);
+        setCompletedTasks([]);
+      }
+      
+      // Update the queue
+      setQueue(getQueueForWorkstation(workstation.stationNumber));
+    }
+    
+    setMachineToDelete(null);
+  };
+
   return (
     <div className="space-y-6">
       <Card className="relative overflow-hidden">
@@ -272,6 +326,39 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 </div>
                 <div className="text-xl font-bold">{activeMachine}</div>
               </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setMachineToDelete(activeMachine)}
+                  >
+                    <Trash className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Machine</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete machine {machineToDelete}? 
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setMachineToDelete(null)}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleDeleteMachine}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
           
@@ -305,6 +392,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 queue={queue} 
                 currentBarcodeId={activeMachine}
                 onSelectMachine={handleSwitchMachine}
+                onDeleteMachine={(barcodeId) => setMachineToDelete(barcodeId)}
               />
             </TabsContent>
           </Tabs>
@@ -346,6 +434,30 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
           )}
         </CardFooter>
       </Card>
+      
+      {/* Alert dialog for confirming machine deletion */}
+      <AlertDialog open={!!machineToDelete} onOpenChange={(open) => !open && setMachineToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Machine</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete machine {machineToDelete}? 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMachineToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteMachine}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
