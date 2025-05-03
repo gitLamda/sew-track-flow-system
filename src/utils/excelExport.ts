@@ -47,6 +47,9 @@ const createSummarySheet = (machines: MachineJourney[]): any[] => {
       ? `${Math.floor(totalWaitTime / (1000 * 60))} minutes` 
       : "No wait";
     
+    // Calculate the percentage of total process completion
+    const completionPercentage = (machine.completedWorkstations.length / 6) * 100;
+    
     return {
       "Barcode ID": machine.barcodeId,
       "Start Time": formatDate(machine.startTime),
@@ -56,18 +59,29 @@ const createSummarySheet = (machines: MachineJourney[]): any[] => {
         : "In progress",
       "Total Wait Time": formattedTotalWaitTime,
       "Completed Workstations": machine.completedWorkstations.length,
+      "Progress": `${Math.round(completionPercentage)}%`,
       "Current Workstation": machine.currentWorkstation || "Completed",
       "Status": machine.endTime ? "Completed" : "In Progress"
     };
   });
 };
 
-// Create a detailed sheet with all records
+// Create a detailed worksheet with all records
 const createDetailedSheet = (machines: MachineJourney[]): any[] => {
   const allRecords: any[] = [];
   
   machines.forEach((machine) => {
     machine.records.forEach((record) => {
+      const duration = record.checkoutTime 
+        ? calculateDuration(record.checkinTime, record.checkoutTime)
+        : "In progress";
+        
+      const processingTime = record.checkoutTime
+        ? (new Date(record.checkoutTime).getTime() - new Date(record.checkinTime).getTime())
+        : null;
+        
+      const waitTimeFormatted = formatWaitTime(record.waitTime);
+        
       allRecords.push({
         "Barcode ID": machine.barcodeId,
         "Workstation": record.workstation,
@@ -75,10 +89,9 @@ const createDetailedSheet = (machines: MachineJourney[]): any[] => {
         "Operator EPF": record.operator.epf,
         "Check-in Time": formatDate(record.checkinTime),
         "Check-out Time": record.checkoutTime ? formatDate(record.checkoutTime) : "In progress",
-        "Duration": record.checkoutTime 
-          ? calculateDuration(record.checkinTime, record.checkoutTime) 
-          : "In progress",
-        "Wait Time": formatWaitTime(record.waitTime),
+        "Duration": duration,
+        "Processing Time (mins)": processingTime ? Math.round(processingTime / (1000 * 60)) : "N/A",
+        "Wait Time": waitTimeFormatted,
         "Tasks Completed": record.tasksCompleted.length,
         "Total Tasks": record.totalTasks,
         "Completion Rate": record.totalTasks > 0 
@@ -107,6 +120,16 @@ const createTasksSheet = (machines: MachineJourney[]): any[] => {
             "Completed On": record.checkoutTime ? formatDate(record.checkoutTime) : "In progress",
           });
         });
+      } else if (record.checkoutTime) {
+        // Include records where no tasks were completed but the machine was processed
+        taskRecords.push({
+          "Barcode ID": machine.barcodeId,
+          "Workstation": record.workstation,
+          "Operator": `${record.operator.name} (${record.operator.epf})`,
+          "Task ID": "None completed",
+          "Completed On": formatDate(record.checkoutTime),
+          "Note": "Machine processed with no tasks marked as complete",
+        });
       }
     });
   });
@@ -114,13 +137,63 @@ const createTasksSheet = (machines: MachineJourney[]): any[] => {
   return taskRecords;
 };
 
+// Create a workstation journey sheet that tracks machine flow
+const createWorkstationJourneySheet = (machines: MachineJourney[]): any[] => {
+  const journeyRecords: any[] = [];
+  
+  machines.forEach((machine) => {
+    // Sort records by workstation number to show the flow
+    const sortedRecords = [...machine.records].sort((a, b) => a.workstation - b.workstation);
+    
+    // Create a record of the machine's path through workstations
+    const workstationPath = sortedRecords.map(record => {
+      const checkInDate = new Date(record.checkinTime);
+      const checkoutDate = record.checkoutTime ? new Date(record.checkoutTime) : null;
+      
+      return {
+        "Barcode ID": machine.barcodeId,
+        "Journey Step": `Workstation ${record.workstation}`,
+        "Date": checkInDate.toLocaleDateString(),
+        "Check-in Time": checkInDate.toLocaleTimeString(),
+        "Check-out Time": checkoutDate ? checkoutDate.toLocaleTimeString() : "In progress",
+        "Duration": checkoutDate 
+          ? `${Math.round((checkoutDate.getTime() - checkInDate.getTime()) / (1000 * 60))} mins` 
+          : "In progress",
+        "Operator": record.operator.name,
+        "Tasks Done": `${record.tasksCompleted.length} of ${record.totalTasks}`,
+        "Status": record.checkoutTime ? "Completed" : "In Progress"
+      };
+    });
+    
+    journeyRecords.push(...workstationPath);
+    
+    // Add the final status of the machine
+    journeyRecords.push({
+      "Barcode ID": machine.barcodeId,
+      "Journey Step": "Final Status",
+      "Date": machine.endTime ? new Date(machine.endTime).toLocaleDateString() : new Date().toLocaleDateString(),
+      "Check-in Time": "-",
+      "Check-out Time": machine.endTime ? new Date(machine.endTime).toLocaleTimeString() : "-",
+      "Duration": "Total: " + (machine.endTime 
+        ? `${Math.round((new Date(machine.endTime).getTime() - new Date(machine.startTime).getTime()) / (1000 * 60))} mins`
+        : "In progress"),
+      "Operator": "-",
+      "Tasks Done": `${machine.completedWorkstations.length} of 6 workstations`,
+      "Status": machine.endTime ? "Process Complete" : `At Workstation ${machine.currentWorkstation || '?'}`
+    });
+  });
+  
+  return journeyRecords;
+};
+
 // Export data to Excel file
 export const exportToExcel = (machines: MachineJourney[], dateRange: string): void => {
   try {
-    // Create summary and detailed sheets
+    // Create various data sheets
     const summaryData = createSummarySheet(machines);
     const detailedData = createDetailedSheet(machines);
     const tasksData = createTasksSheet(machines);
+    const journeyData = createWorkstationJourneySheet(machines);
     
     // Create a new workbook and add the sheets
     const wb = XLSX.utils.book_new();
@@ -134,16 +207,20 @@ export const exportToExcel = (machines: MachineJourney[], dateRange: string): vo
     const tasksSheet = XLSX.utils.json_to_sheet(tasksData);
     XLSX.utils.book_append_sheet(wb, tasksSheet, "Task Completion");
     
+    const journeySheet = XLSX.utils.json_to_sheet(journeyData);
+    XLSX.utils.book_append_sheet(wb, journeySheet, "Machine Journey");
+    
     // Add column widths to make the sheets more readable
     const columnWidths = [
       { wch: 15 }, // Barcode ID
-      { wch: 20 }, // Dates
-      { wch: 20 }, // Times
-      { wch: 15 }, // Duration
-      { wch: 15 }, // Other fields
+      { wch: 20 }, // Dates and times
+      { wch: 20 }, // Other fields
+      { wch: 15 }, // Durations
+      { wch: 15 }, // Workstations
+      { wch: 15 }, // Operators
     ];
     
-    [summarySheet, detailedSheet, tasksSheet].forEach(sheet => {
+    [summarySheet, detailedSheet, tasksSheet, journeySheet].forEach(sheet => {
       sheet['!cols'] = columnWidths;
     });
     

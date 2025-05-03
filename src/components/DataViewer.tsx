@@ -21,7 +21,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { getCompletedMachines, getDatabase, MachineJourney } from "@/utils/dataStorage";
+import { getCompletedMachines, getDatabase, MachineJourney, MachineRecord } from "@/utils/dataStorage";
 import { prepareMachineDataForExport } from "@/utils/excelExport";
 import { 
   CalendarIcon, 
@@ -29,17 +29,19 @@ import {
   FileSpreadsheet, 
   RefreshCcw, 
   Search, 
-  Sliders 
+  Eye
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface ProcessedMachineRecord {
   barcodeId: string;
   startTime: string;
   endTime: string | null;
-  records: any[];
+  records: MachineRecord[];
   totalDuration: number | null;
   completedWorkstations: number[];
+  currentWorkstation: number | null;
 }
 
 const DataViewer: React.FC = () => {
@@ -48,6 +50,7 @@ const DataViewer: React.FC = () => {
   const [machines, setMachines] = useState<ProcessedMachineRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalEntries, setTotalEntries] = useState<number>(0);
+  const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   
   // Load database summary on component mount
   useEffect(() => {
@@ -71,18 +74,20 @@ const DataViewer: React.FC = () => {
       
       const data = getCompletedMachines(date, adjustedEndDate);
       
-      // Ensure all machine records have completedWorkstations property
+      // Process data to ensure all required properties exist
       const processedData = data.map(machine => ({
         ...machine,
-        completedWorkstations: machine.completedWorkstations || []
+        completedWorkstations: machine.completedWorkstations || [],
+        currentWorkstation: machine.currentWorkstation,
       }));
       
       setMachines(processedData);
+      setSelectedMachine(null);
       
       if (processedData.length === 0) {
         toast.info("No completed machines found in the selected date range");
       } else {
-        toast.success(`Found ${processedData.length} completed machines`);
+        toast.success(`Found ${processedData.length} machines`);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -109,7 +114,17 @@ const DataViewer: React.FC = () => {
       const adjustedEndDate = new Date(endDate);
       adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
       
-      prepareMachineDataForExport(machines, date, adjustedEndDate);
+      // Convert ProcessedMachineRecord[] back to MachineJourney[] for export
+      const machineJourneys = machines.map(machine => ({
+        barcodeId: machine.barcodeId,
+        currentWorkstation: machine.currentWorkstation,
+        completedWorkstations: machine.completedWorkstations,
+        records: machine.records,
+        startTime: machine.startTime,
+        endTime: machine.endTime
+      }));
+      
+      prepareMachineDataForExport(machineJourneys, date, adjustedEndDate);
     } catch (error) {
       console.error("Error exporting data:", error);
       toast.error("Failed to export data. Please try again");
@@ -124,6 +139,11 @@ const DataViewer: React.FC = () => {
     const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
     
     return `${hours}h ${minutes}m`;
+  };
+
+  // Handle machine selection for detailed view
+  const handleSelectMachine = (barcodeId: string) => {
+    setSelectedMachine(selectedMachine === barcodeId ? null : barcodeId);
   };
 
   return (
@@ -228,7 +248,7 @@ const DataViewer: React.FC = () => {
             <div>
               <CardTitle>Machine Records</CardTitle>
               <CardDescription>
-                {machines.length} machines completed between {format(date!, "PP")} and {format(endDate!, "PP")}
+                {machines.length} machines between {format(date!, "PP")} and {format(endDate!, "PP")}
               </CardDescription>
             </div>
             <Button onClick={handleExport} className="flex items-center gap-2">
@@ -242,38 +262,108 @@ const DataViewer: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[100px]"></TableHead>
                       <TableHead>Barcode ID</TableHead>
                       <TableHead>Started</TableHead>
-                      <TableHead>Completed</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Duration</TableHead>
                       <TableHead>Workstations</TableHead>
-                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {machines.map((machine) => (
-                      <TableRow key={machine.barcodeId}>
-                        <TableCell className="font-medium">{machine.barcodeId}</TableCell>
-                        <TableCell>{format(new Date(machine.startTime), "PPp")}</TableCell>
-                        <TableCell>
-                          {machine.endTime
-                            ? format(new Date(machine.endTime), "PPp")
-                            : "In progress"}
-                        </TableCell>
-                        <TableCell>{formatDuration(machine.totalDuration)}</TableCell>
-                        <TableCell>{machine.completedWorkstations.length} / 6</TableCell>
-                        <TableCell>
-                          {machine.endTime ? (
-                            <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs rounded-full">
-                              Completed
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
-                              In Progress
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                      <React.Fragment key={machine.barcodeId}>
+                        <TableRow 
+                          className={cn(selectedMachine === machine.barcodeId && "bg-muted/50")}
+                          onClick={() => handleSelectMachine(machine.barcodeId)}
+                        >
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                              <Eye className="h-4 w-4" />
+                              <span className="sr-only">View details</span>
+                            </Button>
+                          </TableCell>
+                          <TableCell className="font-medium">{machine.barcodeId}</TableCell>
+                          <TableCell>{format(new Date(machine.startTime), "MMM d, HH:mm")}</TableCell>
+                          <TableCell>
+                            {machine.endTime ? (
+                              <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200">
+                                Completed
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200">
+                                In Progress - WS {machine.currentWorkstation}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{formatDuration(machine.totalDuration)}</TableCell>
+                          <TableCell>{machine.completedWorkstations.length} / 6</TableCell>
+                        </TableRow>
+                        
+                        {/* Detailed view when selected */}
+                        {selectedMachine === machine.barcodeId && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="p-0">
+                              <div className="bg-muted/30 p-4 space-y-4">
+                                <h4 className="font-medium text-lg">Machine Journey Details</h4>
+                                
+                                <div className="rounded-md border overflow-hidden">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Workstation</TableHead>
+                                        <TableHead>Operator</TableHead>
+                                        <TableHead>Check-in Time</TableHead>
+                                        <TableHead>Check-out Time</TableHead>
+                                        <TableHead>Tasks</TableHead>
+                                        <TableHead>Wait Time</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {machine.records.map((record, index) => (
+                                        <TableRow key={index}>
+                                          <TableCell>
+                                            <Badge variant={machine.completedWorkstations.includes(record.workstation) ? "default" : "outline"}>
+                                              WS-{record.workstation}
+                                            </Badge>
+                                          </TableCell>
+                                          <TableCell>
+                                            <div>{record.operator.name}</div>
+                                            <div className="text-xs text-muted-foreground">EPF: {record.operator.epf}</div>
+                                          </TableCell>
+                                          <TableCell>{format(new Date(record.checkinTime), "MMM d, HH:mm")}</TableCell>
+                                          <TableCell>
+                                            {record.checkoutTime 
+                                              ? format(new Date(record.checkoutTime), "MMM d, HH:mm") 
+                                              : "In progress"}
+                                          </TableCell>
+                                          <TableCell>
+                                            {record.tasksCompleted.length} / {record.totalTasks}
+                                            <div className="text-xs text-muted-foreground">
+                                              {Math.round((record.tasksCompleted.length / (record.totalTasks || 1)) * 100)}% complete
+                                            </div>
+                                          </TableCell>
+                                          <TableCell>
+                                            {record.waitTime
+                                              ? `${Math.round(record.waitTime / (1000 * 60))} mins`
+                                              : "No wait"}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                                
+                                {machine.records.length === 0 && (
+                                  <div className="text-center p-4 text-muted-foreground">
+                                    No detailed records available for this machine
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -281,7 +371,7 @@ const DataViewer: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter className="text-sm text-muted-foreground flex justify-between items-center">
-            <span>Click Export Excel for a detailed report with operator and task information</span>
+            <span>Click on a row to view detailed journey information</span>
             <div className="text-xs">
               Last updated: {format(new Date(), "PPp")}
             </div>
