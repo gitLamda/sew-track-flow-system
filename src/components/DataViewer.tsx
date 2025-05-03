@@ -33,10 +33,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface ProcessedMachineRecord {
+  barcodeId: string;
+  startTime: string;
+  endTime: string | null;
+  records: any[];
+  totalDuration: number | null;
+  completedWorkstations: number[];
+}
+
 const DataViewer: React.FC = () => {
   const [date, setDate] = useState<Date | undefined>(subDays(new Date(), 7)); // Default to 7 days ago
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-  const [machines, setMachines] = useState<MachineJourney[]>([]);
+  const [machines, setMachines] = useState<ProcessedMachineRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [totalEntries, setTotalEntries] = useState<number>(0);
   
@@ -61,12 +70,19 @@ const DataViewer: React.FC = () => {
       adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
       
       const data = getCompletedMachines(date, adjustedEndDate);
-      setMachines(data);
       
-      if (data.length === 0) {
+      // Ensure all machine records have completedWorkstations property
+      const processedData = data.map(machine => ({
+        ...machine,
+        completedWorkstations: machine.completedWorkstations || []
+      }));
+      
+      setMachines(processedData);
+      
+      if (processedData.length === 0) {
         toast.info("No completed machines found in the selected date range");
       } else {
-        toast.success(`Found ${data.length} completed machines`);
+        toast.success(`Found ${processedData.length} completed machines`);
       }
     } catch (error) {
       console.error("Error fetching data:", error);

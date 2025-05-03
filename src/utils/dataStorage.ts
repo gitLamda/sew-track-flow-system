@@ -221,6 +221,7 @@ export const getCompletedMachines = (startDate: Date, endDate: Date): any[] => {
         startTime: machine.startTime,
         endTime: machine.endTime,
         records: machine.records,
+        completedWorkstations: machine.completedWorkstations || [], // Ensure this property exists
         totalDuration: machine.endTime 
           ? new Date(machine.endTime).getTime() - new Date(machine.startTime).getTime()
           : null,
