@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { 
   Card, 
   CardContent, 
@@ -15,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BarcodeScanner from "./BarcodeScanner";
 import TaskChecklist from "./TaskChecklist";
 import QueueDisplay from "./QueueDisplay";
-import { WorkstationConfig, Task } from "@/data/workstationTasks";
+import { WorkstationConfig } from "@/data/workstationTasks";
 import { 
   checkInMachine, 
   checkOutMachine, 
@@ -23,7 +22,7 @@ import {
   getMachineJourney 
 } from "@/utils/dataStorage";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Check, Info } from "lucide-react";
+import { AlertTriangle, Check, Info, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface WorkstationInterfaceProps {
@@ -37,8 +36,9 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [queue, setQueue] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [showScanner, setShowScanner] = useState<boolean>(false);
   
-  // Load queue data on mount and when active machine changes
+  // Load queue data on mount and when queue changes
   useEffect(() => {
     const loadQueue = () => {
       const queueData = getQueueForWorkstation(workstation.stationNumber);
@@ -56,11 +56,6 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   // Handle barcode scan
   const handleBarcodeScan = (barcode: string) => {
     if (isProcessing) return;
-    
-    if (activeMachine) {
-      toast.error("Please complete the current machine before scanning another");
-      return;
-    }
     
     if (!operatorName || !operatorEPF) {
       toast.error("Please enter your name and EPF number");
@@ -88,6 +83,20 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         }
       }
       
+      // Check if this machine is already in this workstation
+      const existingQueueItem = queue.find(item => item.barcodeId === barcode);
+      if (existingQueueItem) {
+        if (!activeMachine) {
+          setActiveMachine(barcode);
+          setCompletedTasks([]);
+        } else {
+          toast.info(`Machine ${barcode} is already in the queue`);
+        }
+        setShowScanner(false);
+        setIsProcessing(false);
+        return;
+      }
+      
       // Check in the machine
       const { isNew, waitTime } = checkInMachine(
         barcode,
@@ -102,14 +111,35 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         toast.info(`Machine ${barcode} is in queue. Estimated wait: ${waitMinutes} minutes`);
       }
       
-      setActiveMachine(barcode);
-      setCompletedTasks([]);
+      // If no machine is active, set this one as active
+      if (!activeMachine) {
+        setActiveMachine(barcode);
+        setCompletedTasks([]);
+      }
+      
+      // Update the queue
+      setQueue(getQueueForWorkstation(workstation.stationNumber));
+      setShowScanner(false);
     } catch (error) {
       console.error("Error checking in machine:", error);
       toast.error("Failed to check in machine. Please try again");
     } finally {
       setIsProcessing(false);
     }
+  };
+  
+  // Handle switching to a different machine in the queue
+  const handleSwitchMachine = (barcodeId: string) => {
+    if (isProcessing) return;
+    
+    if (activeMachine === barcodeId) return;
+    
+    // Save the current progress if needed
+    // For now we're just switching machines without saving partial progress
+    
+    setActiveMachine(barcodeId);
+    setCompletedTasks([]);
+    toast.info(`Switched to machine ${barcodeId}`);
   };
   
   // Handle task completion
@@ -141,8 +171,20 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
           toast.info(`Machine ${activeMachine} ready for Workstation ${workstation.stationNumber + 1}`);
         }
         
-        setActiveMachine(null);
-        setCompletedTasks([]);
+        // Find the next machine in queue if any
+        const updatedQueue = getQueueForWorkstation(workstation.stationNumber);
+        setQueue(updatedQueue);
+        
+        // Set the next machine in queue as active if available
+        const nextMachine = updatedQueue.find(item => item.barcodeId !== activeMachine);
+        if (nextMachine) {
+          setActiveMachine(nextMachine.barcodeId);
+          setCompletedTasks([]);
+          toast.info(`Next machine ${nextMachine.barcodeId} is now active`);
+        } else {
+          setActiveMachine(null);
+          setCompletedTasks([]);
+        }
       }
     } catch (error) {
       console.error("Error completing machine:", error);
@@ -165,7 +207,9 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
               <CardDescription>{workstation.stationName}</CardDescription>
             </div>
             <Badge variant="outline" className="text-lg font-medium">
-              {activeMachine ? "Active" : "Ready"}
+              {queue.length > 0 
+                ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
+                : (activeMachine ? "Active" : "Ready")}
             </Badge>
           </div>
         </CardHeader>
@@ -181,7 +225,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 value={operatorName}
                 onChange={(e) => setOperatorName(e.target.value)}
                 placeholder="Enter your name"
-                disabled={!!activeMachine || isProcessing}
+                disabled={isProcessing}
               />
             </div>
             <div>
@@ -193,18 +237,34 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 value={operatorEPF}
                 onChange={(e) => setOperatorEPF(e.target.value)}
                 placeholder="Enter your EPF number"
-                disabled={!!activeMachine || isProcessing}
+                disabled={isProcessing}
               />
             </div>
           </div>
           
-          {/* Machine barcode scanner */}
-          {!activeMachine ? (
+          {/* Scanner toggle section */}
+          {!showScanner ? (
+            <div className="flex gap-2">
+              <Button 
+                className="w-full"
+                variant="outline" 
+                onClick={() => setShowScanner(true)}
+                disabled={isProcessing || !operatorName || !operatorEPF}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Scan New Machine
+              </Button>
+            </div>
+          ) : (
             <BarcodeScanner 
               onScan={handleBarcodeScan} 
+              onCancel={() => setShowScanner(false)}
               disabled={isProcessing || !operatorName || !operatorEPF}
             />
-          ) : (
+          )}
+          
+          {/* Active machine information */}
+          {activeMachine && (
             <div className="bg-primary/10 p-4 rounded-lg flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium text-muted-foreground">
@@ -212,23 +272,16 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 </div>
                 <div className="text-xl font-bold">{activeMachine}</div>
               </div>
-              <Button 
-                variant="outline" 
-                onClick={() => setActiveMachine(null)}
-                disabled={isProcessing}
-              >
-                Change
-              </Button>
             </div>
           )}
           
           {/* Tabs for Tasks and Queue */}
-          {activeMachine && (
-            <Tabs defaultValue="tasks">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="tasks">Tasks</TabsTrigger>
-                <TabsTrigger value="queue">Queue</TabsTrigger>
-              </TabsList>
+          <Tabs defaultValue={activeMachine ? "tasks" : "queue"}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="tasks" disabled={!activeMachine}>Tasks</TabsTrigger>
+              <TabsTrigger value="queue">Queue ({queue.length})</TabsTrigger>
+            </TabsList>
+            {activeMachine && (
               <TabsContent value="tasks" className="space-y-4 pt-4">
                 <TaskChecklist 
                   tasks={workstation.tasks} 
@@ -246,11 +299,15 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                   </Button>
                 </div>
               </TabsContent>
-              <TabsContent value="queue">
-                <QueueDisplay queue={queue} currentBarcodeId={activeMachine} />
-              </TabsContent>
-            </Tabs>
-          )}
+            )}
+            <TabsContent value="queue">
+              <QueueDisplay 
+                queue={queue} 
+                currentBarcodeId={activeMachine}
+                onSelectMachine={handleSwitchMachine}
+              />
+            </TabsContent>
+          </Tabs>
         </CardContent>
         
         {/* Information messages */}
@@ -267,7 +324,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
               <Info className="h-5 w-5 text-blue-500 mt-0.5" />
               <div>
                 {queue.length > 0 
-                  ? `${queue.length} machine(s) in queue. Scan a machine barcode to begin processing.`
+                  ? `${queue.length} machine(s) in queue. Select a machine or scan a new one.`
                   : "No machines in queue. Scan a machine barcode to begin processing."}
               </div>
             </div>

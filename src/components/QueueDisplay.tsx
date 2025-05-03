@@ -1,6 +1,7 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,14 +9,23 @@ interface QueueItem {
   barcodeId: string;
   checkinTime: string;
   waitTime: number | null;
+  operator?: {
+    name: string;
+    epf: string;
+  };
 }
 
 interface QueueDisplayProps {
   queue: QueueItem[];
   currentBarcodeId?: string | null;
+  onSelectMachine?: (barcodeId: string) => void;
 }
 
-const QueueDisplay: React.FC<QueueDisplayProps> = ({ queue, currentBarcodeId }) => {
+const QueueDisplay: React.FC<QueueDisplayProps> = ({ 
+  queue, 
+  currentBarcodeId,
+  onSelectMachine
+}) => {
   // Format the check-in time
   const formatTime = (timeString: string): string => {
     const date = new Date(timeString);
@@ -49,29 +59,49 @@ const QueueDisplay: React.FC<QueueDisplayProps> = ({ queue, currentBarcodeId }) 
               <li 
                 key={item.barcodeId}
                 className={cn(
-                  "p-3 rounded-md flex justify-between items-center",
+                  "p-3 rounded-md",
                   item.barcodeId === currentBarcodeId 
                     ? "bg-primary text-primary-foreground font-medium" 
-                    : index === 0 && item.barcodeId !== currentBarcodeId
+                    : index === 0 && !currentBarcodeId
                       ? "bg-green-100 dark:bg-green-900/20"
                       : "bg-secondary"
                 )}
               >
-                <span className="text-sm">
-                  {item.barcodeId}
-                  {index === 0 && item.barcodeId !== currentBarcodeId && (
-                    <span className="ml-2 text-xs bg-green-500/20 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
-                      Next Up
-                    </span>
-                  )}
-                </span>
-                <div className="flex gap-2 items-center">
-                  <span className="text-xs opacity-80">
-                    {formatTime(item.checkinTime)}
-                  </span>
-                  <span className="text-xs bg-primary/20 px-2 py-0.5 rounded-full">
-                    {formatWaitTime(item.waitTime)}
-                  </span>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div>
+                    <div className="font-medium">
+                      {item.barcodeId}
+                      {index === 0 && !currentBarcodeId && (
+                        <span className="ml-2 text-xs bg-green-500/20 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
+                          Next Up
+                        </span>
+                      )}
+                    </div>
+                    {item.operator && (
+                      <div className="text-xs opacity-80">
+                        Operator: {item.operator.name} ({item.operator.epf})
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs opacity-80">
+                        {formatTime(item.checkinTime)}
+                      </span>
+                      <span className="text-xs bg-primary/20 px-2 py-0.5 rounded-full">
+                        {formatWaitTime(item.waitTime)}
+                      </span>
+                    </div>
+                    {onSelectMachine && item.barcodeId !== currentBarcodeId && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => onSelectMachine(item.barcodeId)}
+                      >
+                        Select
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}

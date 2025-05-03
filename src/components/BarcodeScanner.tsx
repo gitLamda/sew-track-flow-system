@@ -3,14 +3,19 @@ import React, { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Barcode } from "lucide-react";
+import { Barcode, X } from "lucide-react";
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
+  onCancel?: () => void;
   disabled?: boolean;
 }
 
-const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, disabled = false }) => {
+const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ 
+  onScan, 
+  onCancel, 
+  disabled = false 
+}) => {
   const [barcodeValue, setBarcodeValue] = useState<string>("");
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,10 +75,22 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, disabled = fals
   };
 
   return (
-    <div ref={containerRef} className="barcode-scanner bg-white p-4 rounded-lg shadow-md">
-      <div className="text-lg font-medium mb-2 flex items-center gap-2">
-        <Barcode className="h-5 w-5" />
-        <span>Machine Barcode Scanner</span>
+    <div ref={containerRef} className="barcode-scanner bg-white dark:bg-secondary p-4 rounded-lg shadow-md">
+      <div className="text-lg font-medium mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Barcode className="h-5 w-5" />
+          <span>Machine Barcode Scanner</span>
+        </div>
+        {onCancel && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onCancel}
+            className="h-8 w-8"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
       
       <form onSubmit={handleSubmit} className="flex gap-2">

@@ -37,6 +37,16 @@ const formatWaitTime = (waitTimeMs: number | null): string => {
 // Create a summary sheet for all machines
 const createSummarySheet = (machines: MachineJourney[]): any[] => {
   return machines.map((machine) => {
+    // Calculate the total waiting time across all workstations
+    const totalWaitTime = machine.records.reduce((total, record) => {
+      return total + (record.waitTime || 0);
+    }, 0);
+    
+    // Format the total wait time
+    const formattedTotalWaitTime = totalWaitTime > 0 
+      ? `${Math.floor(totalWaitTime / (1000 * 60))} minutes` 
+      : "No wait";
+    
     return {
       "Barcode ID": machine.barcodeId,
       "Start Time": formatDate(machine.startTime),
@@ -44,8 +54,10 @@ const createSummarySheet = (machines: MachineJourney[]): any[] => {
       "Total Duration": machine.endTime 
         ? calculateDuration(machine.startTime, machine.endTime) 
         : "In progress",
-      "Completed Workstations": machine.completedWorkstations.join(", "),
+      "Total Wait Time": formattedTotalWaitTime,
+      "Completed Workstations": machine.completedWorkstations.length,
       "Current Workstation": machine.currentWorkstation || "Completed",
+      "Status": machine.endTime ? "Completed" : "In Progress"
     };
   });
 };
@@ -79,12 +91,36 @@ const createDetailedSheet = (machines: MachineJourney[]): any[] => {
   return allRecords;
 };
 
+// Create a tasks sheet with task completion details
+const createTasksSheet = (machines: MachineJourney[]): any[] => {
+  const taskRecords: any[] = [];
+  
+  machines.forEach((machine) => {
+    machine.records.forEach((record) => {
+      if (record.tasksCompleted.length > 0) {
+        record.tasksCompleted.forEach((taskId) => {
+          taskRecords.push({
+            "Barcode ID": machine.barcodeId,
+            "Workstation": record.workstation,
+            "Operator": `${record.operator.name} (${record.operator.epf})`,
+            "Task ID": taskId,
+            "Completed On": record.checkoutTime ? formatDate(record.checkoutTime) : "In progress",
+          });
+        });
+      }
+    });
+  });
+  
+  return taskRecords;
+};
+
 // Export data to Excel file
 export const exportToExcel = (machines: MachineJourney[], dateRange: string): void => {
   try {
     // Create summary and detailed sheets
     const summaryData = createSummarySheet(machines);
     const detailedData = createDetailedSheet(machines);
+    const tasksData = createTasksSheet(machines);
     
     // Create a new workbook and add the sheets
     const wb = XLSX.utils.book_new();
@@ -94,6 +130,22 @@ export const exportToExcel = (machines: MachineJourney[], dateRange: string): vo
     
     const detailedSheet = XLSX.utils.json_to_sheet(detailedData);
     XLSX.utils.book_append_sheet(wb, detailedSheet, "Detailed Records");
+    
+    const tasksSheet = XLSX.utils.json_to_sheet(tasksData);
+    XLSX.utils.book_append_sheet(wb, tasksSheet, "Task Completion");
+    
+    // Add column widths to make the sheets more readable
+    const columnWidths = [
+      { wch: 15 }, // Barcode ID
+      { wch: 20 }, // Dates
+      { wch: 20 }, // Times
+      { wch: 15 }, // Duration
+      { wch: 15 }, // Other fields
+    ];
+    
+    [summarySheet, detailedSheet, tasksSheet].forEach(sheet => {
+      sheet['!cols'] = columnWidths;
+    });
     
     // Generate filename with current date
     const fileName = `Machine_Service_Report_${dateRange}.xlsx`;
@@ -113,8 +165,8 @@ export const prepareMachineDataForExport = (
   startDate: Date, 
   endDate: Date
 ): void => {
-  const formattedStartDate = startDate.toLocaleDateString();
-  const formattedEndDate = endDate.toLocaleDateString();
+  const formattedStartDate = startDate.toLocaleDateString().replace(/\//g, '-');
+  const formattedEndDate = endDate.toLocaleDateString().replace(/\//g, '-');
   const dateRange = `${formattedStartDate}_to_${formattedEndDate}`;
   
   exportToExcel(machines, dateRange);
