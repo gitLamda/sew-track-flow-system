@@ -5,65 +5,65 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 33% 98%;
+    --foreground: 222 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 84% 4.9%;
 
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 250 84% 60%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 222 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 254 65% 85%;
+    --accent-foreground: 222 47.4% 11.2%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 350 89% 60%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 250 84% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 5%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 10%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 10%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 250 84% 60%;
+    --primary-foreground: 222 47.4% 11.2%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217 32% 17%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 254 65% 25%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 350 89% 40%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 250 84% 60%;
   }
 }
 
@@ -89,13 +89,13 @@
 
 @keyframes scanner-flash {
   0% {
-    background-color: rgba(59, 130, 246, 0);
+    background-color: rgba(99, 102, 241, 0);
   }
   50% {
-    background-color: rgba(59, 130, 246, 0.3);
+    background-color: rgba(99, 102, 241, 0.3);
   }
   100% {
-    background-color: rgba(59, 130, 246, 0);
+    background-color: rgba(99, 102, 241, 0);
   }
 }
 
@@ -118,4 +118,57 @@
   opacity: 0;
   transform: translateX(10px);
   transition: opacity 300ms, transform 300ms;
+}
+
+/* Modern card and glass effect styles */
+.glass-card {
+  @apply backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border border-white/20 dark:border-gray-800/50;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+}
+
+.card-highlight {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-highlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  transform: skewX(-25deg);
+  transition: all 0.75s;
+}
+
+.card-highlight:hover::before {
+  left: 125%;
+}
+
+/* Animation for status indicators */
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+  }
+  
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.status-pulse {
+  animation: pulse 2s infinite;
 }

@@ -8,7 +8,7 @@ import DataViewer from "@/components/DataViewer";
 import { workstationTasks } from "@/data/workstationTasks";
 import { exportDatabase, importDatabase, setupRealtimeSubscription } from "@/utils/dataStorage";
 import { toast } from "sonner";
-import { Database, RefreshCw, Download, Upload } from "lucide-react";
+import { Database, RefreshCw, Download, Upload, Clock } from "lucide-react";
 
 const Index: React.FC = () => {
   const [activeWorkstation, setActiveWorkstation] = useState<number>(1);
@@ -73,19 +73,45 @@ const Index: React.FC = () => {
     toast.success("Data refreshed from storage");
   };
 
+  // Format time for display
+  const formatLastRefreshTime = () => {
+    const hours = lastRefresh.getHours().toString().padStart(2, '0');
+    const minutes = lastRefresh.getMinutes().toString().padStart(2, '0');
+    const seconds = lastRefresh.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
   return (
-    <div className="container py-6 mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-3xl font-bold">Sewing Machine Service Tracking System</h1>
+    <div className="container py-8 mx-auto min-h-screen">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 relative">
+        <div>
+          <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
+            Sewing Machine Service
+          </h1>
+          <p className="text-muted-foreground mt-1 flex items-center">
+            <Clock className="h-4 w-4 mr-1" />
+            Last sync: {formatLastRefreshTime()}
+          </p>
+        </div>
         
-        <div className="flex mt-2 sm:mt-0 space-x-2">
-          <Button variant="outline" size="sm" onClick={handleManualRefresh}>
+        <div className="flex mt-4 sm:mt-0 space-x-3">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleManualRefresh}
+            className="glass-card transition-all hover:shadow-md"
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh Data
+            Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={exportDatabase}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={exportDatabase}
+            className="glass-card transition-all hover:shadow-md"
+          >
             <Download className="h-4 w-4 mr-2" />
-            Backup Data
+            Export
           </Button>
           <div className="relative">
             <input
@@ -95,9 +121,13 @@ const Index: React.FC = () => {
               accept=".json"
               onChange={handleImport}
             />
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="glass-card transition-all hover:shadow-md"
+            >
               <Upload className="h-4 w-4 mr-2" />
-              Restore Data
+              Import
             </Button>
           </div>
         </div>
@@ -105,32 +135,32 @@ const Index: React.FC = () => {
       
       <Tabs 
         defaultValue="workstation" 
-        className="space-y-4"
+        className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="workstation">Workstation Interface</TabsTrigger>
-          <TabsTrigger value="reports">Reports & Data</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 glass-card p-1">
+          <TabsTrigger value="workstation" className="text-base">Workstation Interface</TabsTrigger>
+          <TabsTrigger value="reports" className="text-base">Reports & Data</TabsTrigger>
         </TabsList>
         
         <TabsContent value="workstation" className="space-y-6">
           {/* Workstation selector */}
-          <Card>
+          <Card className="glass-card card-highlight shadow-lg">
             <CardHeader className="pb-3">
-              <CardTitle>Select Workstation</CardTitle>
+              <CardTitle className="text-xl">Select Workstation</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                 {workstationTasks.map((ws) => (
                   <button
                     key={ws.stationNumber}
-                    className={`py-2 px-4 rounded-md text-center transition-colors ${
+                    className={`py-3 px-4 rounded-lg text-center transition-all ${
                       activeWorkstation === ws.stationNumber
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary hover:bg-secondary/80"
+                        ? "bg-primary text-primary-foreground shadow-md"
+                        : "bg-secondary hover:bg-secondary/80 hover:shadow"
                     }`}
                     onClick={() => setActiveWorkstation(ws.stationNumber)}
                   >
-                    WS-{ws.stationNumber}
+                    <span className="text-lg font-semibold">WS-{ws.stationNumber}</span>
                   </button>
                 ))}
               </div>
@@ -145,22 +175,30 @@ const Index: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="reports">
-          <Card className="mb-6">
+          <Card className="mb-6 glass-card card-highlight shadow-lg">
             <CardHeader>
-              <CardTitle>Data Management</CardTitle>
+              <CardTitle className="text-xl">Data Management</CardTitle>
               <CardDescription>
                 Export your data to keep a backup or import previous data to restore it
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4">
-                <Button variant="secondary" onClick={handleManualRefresh}>
+                <Button 
+                  variant="secondary" 
+                  onClick={handleManualRefresh}
+                  className="transition-all hover:shadow-md"
+                >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh Data
                 </Button>
-                <Button variant="secondary" onClick={exportDatabase}>
+                <Button 
+                  variant="secondary" 
+                  onClick={exportDatabase}
+                  className="transition-all hover:shadow-md"
+                >
                   <Download className="h-4 w-4 mr-2" />
-                  Export Data Backup
+                  Export Data
                 </Button>
                 <div className="relative">
                   <input
@@ -170,9 +208,12 @@ const Index: React.FC = () => {
                     accept=".json"
                     onChange={handleImport}
                   />
-                  <Button variant="secondary">
+                  <Button 
+                    variant="secondary"
+                    className="transition-all hover:shadow-md"
+                  >
                     <Upload className="h-4 w-4 mr-2" />
-                    Import Data from Backup
+                    Import Data
                   </Button>
                 </div>
               </div>
