@@ -9,7 +9,77 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      machine_journeys: {
+        Row: {
+          barcode_id: string
+          completed_workstations: number[] | null
+          current_workstation: number | null
+          end_time: string | null
+          start_time: string
+        }
+        Insert: {
+          barcode_id: string
+          completed_workstations?: number[] | null
+          current_workstation?: number | null
+          end_time?: string | null
+          start_time?: string
+        }
+        Update: {
+          barcode_id?: string
+          completed_workstations?: number[] | null
+          current_workstation?: number | null
+          end_time?: string | null
+          start_time?: string
+        }
+        Relationships: []
+      }
+      machine_records: {
+        Row: {
+          barcode_id: string
+          checkin_time: string
+          checkout_time: string | null
+          id: string
+          operator_epf: string
+          operator_name: string
+          tasks_completed: string[] | null
+          total_tasks: number | null
+          wait_time: number | null
+          workstation: number
+        }
+        Insert: {
+          barcode_id: string
+          checkin_time?: string
+          checkout_time?: string | null
+          id?: string
+          operator_epf: string
+          operator_name: string
+          tasks_completed?: string[] | null
+          total_tasks?: number | null
+          wait_time?: number | null
+          workstation: number
+        }
+        Update: {
+          barcode_id?: string
+          checkin_time?: string
+          checkout_time?: string | null
+          id?: string
+          operator_epf?: string
+          operator_name?: string
+          tasks_completed?: string[] | null
+          total_tasks?: number | null
+          wait_time?: number | null
+          workstation?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "machine_records_barcode_id_fkey"
+            columns: ["barcode_id"]
+            isOneToOne: false
+            referencedRelation: "machine_journeys"
+            referencedColumns: ["barcode_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

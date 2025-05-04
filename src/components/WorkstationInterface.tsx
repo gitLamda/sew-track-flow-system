@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -49,11 +50,20 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState<boolean>(false);
   const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   // Force update queue when refresh is needed
-  const refreshQueue = () => {
-    const queueData = getQueueForWorkstation(workstation.stationNumber);
-    setQueue(queueData);
+  const refreshQueue = async () => {
+    setIsLoading(true);
+    try {
+      const queueData = await getQueueForWorkstation(workstation.stationNumber);
+      setQueue(queueData);
+    } catch (error) {
+      console.error("Error refreshing queue:", error);
+      toast.error("Failed to refresh queue data");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Load queue data on mount and when queue changes
@@ -63,7 +73,14 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     // Refresh queue every 30 seconds
     const intervalId = setInterval(refreshQueue, 30000);
     
-    return () => clearInterval(intervalId);
+    // Listen for database update events
+    const handleDbUpdate = () => refreshQueue();
+    document.addEventListener('dbUpdate', handleDbUpdate);
+    
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('dbUpdate', handleDbUpdate);
+    };
   }, [workstation.stationNumber, activeMachine]);
   
   // Load operator info from localStorage if available
@@ -88,7 +105,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   }, [operatorName, operatorEPF]);
   
   // Handle barcode scan
-  const handleBarcodeScan = (barcode: string) => {
+  const handleBarcodeScan = async (barcode: string) => {
     if (isProcessing) return;
     
     if (!operatorName || !operatorEPF) {
@@ -101,7 +118,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     try {
       // Check if the machine has completed previous workstations if not the first one
       if (workstation.stationNumber > 1) {
-        const machineJourney = getMachineJourney(barcode);
+        const machineJourney = await getMachineJourney(barcode);
         
         if (!machineJourney) {
           toast.error(`Machine ${barcode} has not been registered in the system`);
@@ -132,7 +149,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       }
       
       // Check in the machine
-      const { isNew, waitTime } = checkInMachine(
+      const { isNew, waitTime } = await checkInMachine(
         barcode,
         workstation.stationNumber,
         { name: operatorName, epf: operatorEPF }
@@ -152,7 +169,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       }
       
       // Update the queue
-      refreshQueue();
+      await refreshQueue();
       setShowScanner(false);
     } catch (error) {
       console.error("Error checking in machine:", error);
@@ -182,14 +199,14 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   };
   
   // Handle machine completion
-  const handleCompleteMachine = () => {
+  const handleCompleteMachine = async () => {
     if (!activeMachine) return;
     
     setIsProcessing(true);
     
     try {
       // Check out the machine
-      const success = checkOutMachine(
+      const success = await checkOutMachine(
         activeMachine,
         workstation.stationNumber,
         completedTasks,
@@ -206,7 +223,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         }
         
         // Find the next machine in queue if any
-        refreshQueue();
+        await refreshQueue();
         
         // Set the next machine in queue as active if available
         const nextMachine = queue.find(item => item.barcodeId !== activeMachine);
@@ -228,23 +245,30 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   };
 
   // Handle delete machine
-  const handleDeleteMachine = () => {
+  const handleDeleteMachine = async () => {
     if (!machineToDelete) return;
     
-    const success = deleteMachine(machineToDelete);
+    setIsProcessing(true);
     
-    if (success) {
-      // If the deleted machine was active, clear it
-      if (activeMachine === machineToDelete) {
-        setActiveMachine(null);
-        setCompletedTasks([]);
-      }
+    try {
+      const success = await deleteMachine(machineToDelete);
       
-      // Update the queue
-      refreshQueue();
+      if (success) {
+        // If the deleted machine was active, clear it
+        if (activeMachine === machineToDelete) {
+          setActiveMachine(null);
+          setCompletedTasks([]);
+        }
+        
+        // Update the queue
+        await refreshQueue();
+      }
+    } catch (error) {
+      console.error("Error deleting machine:", error);
+    } finally {
+      setIsProcessing(false);
+      setMachineToDelete(null);
     }
-    
-    setMachineToDelete(null);
   };
 
   return (
@@ -260,9 +284,10 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
               <CardDescription>{workstation.stationName}</CardDescription>
             </div>
             <Badge variant="outline" className="text-lg font-medium">
-              {queue.length > 0 
-                ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
-                : (activeMachine ? "Active" : "Ready")}
+              {isLoading ? "Loading..." : 
+                queue.length > 0 
+                  ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
+                  : (activeMachine ? "Active" : "Ready")}
             </Badge>
           </div>
         </CardHeader>
@@ -400,7 +425,12 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         
         {/* Information messages */}
         <CardFooter className="border-t bg-secondary/50">
-          {!operatorName || !operatorEPF ? (
+          {isLoading ? (
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+              <div>Loading workstation data...</div>
+            </div>
+          ) : !operatorName || !operatorEPF ? (
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
               <div>

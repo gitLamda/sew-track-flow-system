@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { setupRealtimeSubscription } from "@/utils/dataStorage";
 
 interface QueueItem {
   barcodeId: string;
@@ -30,39 +31,28 @@ const QueueDisplay: React.FC<QueueDisplayProps> = ({
   onDeleteMachine,
   onQueueUpdate
 }) => {
-  const [lastStorageUpdate, setLastStorageUpdate] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   
-  // Listen for storage events from other tabs/windows
+  // Set up realtime subscription to listen for database changes
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'machineServiceDB' && e.newValue !== null) {
-        // If the database was updated in another tab/window
-        if (onQueueUpdate) {
-          onQueueUpdate();
-        }
+    const unsubscribe = setupRealtimeSubscription();
+    
+    // Listen for custom dbUpdate events
+    const handleDbUpdate = () => {
+      setLastUpdate(new Date());
+      if (onQueueUpdate) {
+        onQueueUpdate();
       }
     };
     
-    // Add event listener
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Poll for updates every 10 seconds to catch changes from other devices
-    const intervalId = setInterval(() => {
-      const currentData = localStorage.getItem('machineServiceDB');
-      if (currentData && currentData !== lastStorageUpdate) {
-        setLastStorageUpdate(currentData);
-        if (onQueueUpdate) {
-          onQueueUpdate();
-        }
-      }
-    }, 10000);
+    document.addEventListener('dbUpdate', handleDbUpdate);
     
     // Cleanup
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(intervalId);
+      unsubscribe();
+      document.removeEventListener('dbUpdate', handleDbUpdate);
     };
-  }, [onQueueUpdate, lastStorageUpdate]);
+  }, [onQueueUpdate]);
 
   // Format the check-in time
   const formatTime = (timeString: string): string => {

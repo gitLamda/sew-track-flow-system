@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import WorkstationInterface from "@/components/WorkstationInterface";
 import DataViewer from "@/components/DataViewer";
 import { workstationTasks } from "@/data/workstationTasks";
-import { exportDatabase, importDatabase } from "@/utils/dataStorage";
+import { exportDatabase, importDatabase, setupRealtimeSubscription } from "@/utils/dataStorage";
 import { toast } from "sonner";
 import { Database, RefreshCw, Download, Upload } from "lucide-react";
 
@@ -14,27 +14,26 @@ const Index: React.FC = () => {
   const [activeWorkstation, setActiveWorkstation] = useState<number>(1);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   
-  // Listen for storage changes from other tabs/windows
+  // Set up realtime subscription
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'machineServiceDB' && e.newValue !== null) {
-        // Force refresh the component
-        setLastRefresh(new Date());
-      }
+    const unsubscribe = setupRealtimeSubscription();
+    
+    // Listen for database update events
+    const handleDbUpdate = () => {
+      setLastRefresh(new Date());
     };
+    document.addEventListener('dbUpdate', handleDbUpdate);
     
-    // Add event listener
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Poll for changes every 30 seconds
+    // Refresh every 30 seconds
     const intervalId = setInterval(() => {
       setLastRefresh(new Date());
     }, 30000);
     
     // Cleanup
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
+      unsubscribe();
       clearInterval(intervalId);
+      document.removeEventListener('dbUpdate', handleDbUpdate);
     };
   }, []);
   
@@ -47,14 +46,15 @@ const Index: React.FC = () => {
     if (!file) return;
     
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const jsonData = e.target?.result as string;
-        const success = importDatabase(jsonData);
+        const success = await importDatabase(jsonData);
         
         if (success) {
           // Refresh the page to load the imported data
-          window.location.reload();
+          setLastRefresh(new Date());
+          toast.success("Data imported successfully");
         }
       } catch (error) {
         console.error("Error reading file:", error);
