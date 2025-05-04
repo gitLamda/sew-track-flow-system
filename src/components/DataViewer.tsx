@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, subDays } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -54,12 +53,21 @@ const DataViewer: React.FC = () => {
   
   // Load database summary on component mount
   useEffect(() => {
-    const db = getDatabase();
-    setTotalEntries(Object.keys(db.machines).length);
+    const fetchTotalEntries = async () => {
+      try {
+        const db = await getDatabase();
+        setTotalEntries(Object.keys(db.machines).length);
+      } catch (error) {
+        console.error("Error fetching database entries:", error);
+        toast.error("Failed to fetch database entries");
+      }
+    };
+    
+    fetchTotalEntries();
   }, []);
   
   // Fetch data based on date range
-  const handleViewData = () => {
+  const handleViewData = async () => {
     if (!date || !endDate) {
       toast.error("Please select both start and end dates");
       return;
@@ -72,7 +80,7 @@ const DataViewer: React.FC = () => {
       const adjustedEndDate = new Date(endDate);
       adjustedEndDate.setDate(adjustedEndDate.getDate() + 1);
       
-      const data = getCompletedMachines(date, adjustedEndDate);
+      const data = await getCompletedMachines(date, adjustedEndDate);
       
       // Process data to ensure all required properties exist
       const processedData = data.map(machine => ({
@@ -98,7 +106,7 @@ const DataViewer: React.FC = () => {
   };
   
   // Export data to Excel
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!date || !endDate) {
       toast.error("Please select both start and end dates");
       return;
