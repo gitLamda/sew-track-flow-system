@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -51,17 +50,18 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [showScanner, setShowScanner] = useState<boolean>(false);
   const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
   
+  // Force update queue when refresh is needed
+  const refreshQueue = () => {
+    const queueData = getQueueForWorkstation(workstation.stationNumber);
+    setQueue(queueData);
+  };
+
   // Load queue data on mount and when queue changes
   useEffect(() => {
-    const loadQueue = () => {
-      const queueData = getQueueForWorkstation(workstation.stationNumber);
-      setQueue(queueData);
-    };
-    
-    loadQueue();
+    refreshQueue();
     
     // Refresh queue every 30 seconds
-    const intervalId = setInterval(loadQueue, 30000);
+    const intervalId = setInterval(refreshQueue, 30000);
     
     return () => clearInterval(intervalId);
   }, [workstation.stationNumber, activeMachine]);
@@ -152,7 +152,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       }
       
       // Update the queue
-      setQueue(getQueueForWorkstation(workstation.stationNumber));
+      refreshQueue();
       setShowScanner(false);
     } catch (error) {
       console.error("Error checking in machine:", error);
@@ -206,11 +206,10 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         }
         
         // Find the next machine in queue if any
-        const updatedQueue = getQueueForWorkstation(workstation.stationNumber);
-        setQueue(updatedQueue);
+        refreshQueue();
         
         // Set the next machine in queue as active if available
-        const nextMachine = updatedQueue.find(item => item.barcodeId !== activeMachine);
+        const nextMachine = queue.find(item => item.barcodeId !== activeMachine);
         if (nextMachine) {
           setActiveMachine(nextMachine.barcodeId);
           setCompletedTasks([]);
@@ -242,7 +241,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       }
       
       // Update the queue
-      setQueue(getQueueForWorkstation(workstation.stationNumber));
+      refreshQueue();
     }
     
     setMachineToDelete(null);
@@ -393,6 +392,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 currentBarcodeId={activeMachine}
                 onSelectMachine={handleSwitchMachine}
                 onDeleteMachine={(barcodeId) => setMachineToDelete(barcodeId)}
+                onQueueUpdate={refreshQueue}
               />
             </TabsContent>
           </Tabs>

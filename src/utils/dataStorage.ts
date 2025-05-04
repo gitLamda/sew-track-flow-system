@@ -1,5 +1,9 @@
 import { toast } from "sonner";
 
+// Storage key for the database in localStorage
+const STORAGE_KEY = "machineServiceDB";
+
+// Add a version timestamp to track changes
 export interface MachineRecord {
   barcodeId: string;
   operator: {
@@ -22,9 +26,6 @@ export interface MachineJourney {
   startTime: string;
   endTime: string | null;
 }
-
-// Storage key for the database in localStorage
-const STORAGE_KEY = "machineServiceDB";
 
 // Initialize the database structure
 interface Database {
@@ -54,10 +55,14 @@ export const initializeDatabase = (): Database => {
   };
 };
 
-// Save the database to localStorage
+// Save the database to localStorage and notify other devices
 export const saveDatabase = (database: Database): void => {
   database.lastUpdated = new Date().toISOString();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(database));
+  
+  // Dispatch a custom event to notify any listeners within the same window
+  const event = new CustomEvent('dbUpdate', { detail: { timestamp: database.lastUpdated } });
+  document.dispatchEvent(event);
 };
 
 // Check in a machine to a workstation
@@ -192,7 +197,6 @@ export const getMachinesForWorkstation = (workstation: number): any[] => {
     });
 };
 
-// Get machines in queue for a specific workstation
 export const getQueueForWorkstation = (workstation: number): any[] => {
   const machines = getMachinesForWorkstation(workstation);
   
@@ -285,6 +289,10 @@ export const importDatabase = (jsonData: string): boolean => {
     // Save the imported data
     localStorage.setItem(STORAGE_KEY, jsonData);
     
+    // Trigger a storage event to notify other tabs/windows
+    const event = new CustomEvent('dbUpdate', { detail: { timestamp: parsedData.lastUpdated } });
+    document.dispatchEvent(event);
+    
     toast.success('Database imported successfully');
     return true;
   } catch (error) {
@@ -297,4 +305,8 @@ export const importDatabase = (jsonData: string): boolean => {
 // Clear all data (for testing/development only)
 export const clearDatabase = (): void => {
   localStorage.removeItem(STORAGE_KEY);
+  
+  // Notify other components of the change
+  const event = new CustomEvent('dbUpdate', { detail: { timestamp: new Date().toISOString() } });
+  document.dispatchEvent(event);
 };
