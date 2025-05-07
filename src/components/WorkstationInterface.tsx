@@ -8,13 +8,20 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import BarcodeScanner from "./BarcodeScanner";
 import TaskChecklist from "./TaskChecklist";
 import QueueDisplay from "./QueueDisplay";
 import { WorkstationConfig } from "@/data/workstationTasks";
+import { operators } from "@/data/operators";
 import { 
   checkInMachine, 
   checkOutMachine, 
@@ -23,7 +30,7 @@ import {
   deleteMachine
 } from "@/utils/dataStorage";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Check, Info, Plus, Trash } from "lucide-react";
+import { AlertTriangle, Check, Info, Plus, Trash, User } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -51,6 +58,17 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [showScanner, setShowScanner] = useState<boolean>(false);
   const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [selectedOperator, setSelectedOperator] = useState<string>("");
+  
+  // Handle operator selection change
+  const handleOperatorChange = (value: string) => {
+    setSelectedOperator(value);
+    const selected = operators.find(op => op.name === value);
+    if (selected) {
+      setOperatorName(selected.name);
+      setOperatorEPF(selected.epfNumber);
+    }
+  };
   
   // Force update queue when refresh is needed
   const refreshQueue = async () => {
@@ -91,6 +109,12 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         const { name, epf } = JSON.parse(savedOperator);
         setOperatorName(name || '');
         setOperatorEPF(epf || '');
+        
+        // Set the selected operator in the dropdown
+        const operator = operators.find(op => op.name === name);
+        if (operator) {
+          setSelectedOperator(operator.name);
+        }
       } catch (e) {
         console.error('Error loading operator info:', e);
       }
@@ -273,7 +297,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
 
   return (
     <div className="space-y-6">
-      <Card className="relative overflow-hidden">
+      <Card className="relative overflow-hidden glass-card card-highlight shadow-md">
         <div className="absolute top-0 left-0 w-2 h-full bg-primary"></div>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -292,32 +316,31 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Operator information section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium" htmlFor="operatorName">
-                Operator Name
-              </label>
-              <Input
-                id="operatorName"
-                value={operatorName}
-                onChange={(e) => setOperatorName(e.target.value)}
-                placeholder="Enter your name"
-                disabled={isProcessing}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium" htmlFor="operatorEPF">
-                EPF Number
-              </label>
-              <Input
-                id="operatorEPF"
-                value={operatorEPF}
-                onChange={(e) => setOperatorEPF(e.target.value)}
-                placeholder="Enter your EPF number"
-                disabled={isProcessing}
-              />
-            </div>
+          {/* Operator selection dropdown */}
+          <div className="grid">
+            <label className="text-sm font-medium mb-2 flex items-center" htmlFor="operatorSelect">
+              <User className="h-4 w-4 mr-2" />
+              Select Operator
+            </label>
+            <Select value={selectedOperator} onValueChange={handleOperatorChange}>
+              <SelectTrigger className="w-full" disabled={isProcessing}>
+                <SelectValue placeholder="Select an operator" />
+              </SelectTrigger>
+              <SelectContent>
+                {operators.map((operator) => (
+                  <SelectItem key={operator.epfNumber} value={operator.name}>
+                    {operator.name} (EPF: {operator.epfNumber})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {selectedOperator && (
+              <div className="mt-2 p-2 bg-secondary/50 rounded-md text-sm">
+                <div className="font-medium">Selected: {operatorName}</div>
+                <div className="text-muted-foreground">EPF Number: {operatorEPF}</div>
+              </div>
+            )}
           </div>
           
           {/* Scanner toggle section */}
@@ -434,7 +457,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
               <div>
-                Please enter your name and EPF number before scanning a machine
+                Please select an operator before scanning a machine
               </div>
             </div>
           ) : !activeMachine ? (
