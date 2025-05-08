@@ -9,6 +9,7 @@ import { workstationTasks } from "@/data/workstationTasks";
 import { exportDatabase, importDatabase, setupRealtimeSubscription } from "@/utils/dataStorage";
 import { toast } from "sonner";
 import { Database, RefreshCw, Download, Upload, Clock } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index: React.FC = () => {
   const [activeWorkstation, setActiveWorkstation] = useState<number>(1);
@@ -94,7 +95,8 @@ const Index: React.FC = () => {
           </p>
         </div>
         
-        <div className="flex mt-4 sm:mt-0 space-x-3">
+        <div className="flex mt-4 sm:mt-0 space-x-3 items-center">
+          <ThemeToggle />
           <Button 
             variant="outline" 
             size="sm" 
