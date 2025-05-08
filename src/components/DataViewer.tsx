@@ -19,8 +19,17 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { getCompletedMachines, getDatabase, MachineJourney, MachineRecord } from "@/utils/dataStorage";
+import { getCompletedMachines, getDatabase, MachineJourney, MachineRecord, clearDatabase, exportDatabase } from "@/utils/dataStorage";
 import { prepareMachineDataForExport } from "@/utils/excelExport";
 import { 
   CalendarIcon, 
@@ -28,7 +37,9 @@ import {
   FileSpreadsheet, 
   RefreshCcw, 
   Search, 
-  Eye
+  Eye,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -152,6 +163,18 @@ const DataViewer: React.FC = () => {
   // Handle machine selection for detailed view
   const handleSelectMachine = (barcodeId: string) => {
     setSelectedMachine(selectedMachine === barcodeId ? null : barcodeId);
+  };
+
+  // Handle database clear with confirmation
+  const handleClearDatabase = async () => {
+    try {
+      await clearDatabase();
+      setMachines([]);
+      toast.success("Database cleared successfully. Don't forget to export your data first next time!");
+    } catch (error) {
+      console.error("Error clearing database:", error);
+      toast.error("Failed to clear database");
+    }
   };
 
   return (
@@ -386,6 +409,61 @@ const DataViewer: React.FC = () => {
           </CardFooter>
         </Card>
       )}
+      
+      <Card className="border-red-200 dark:border-red-900">
+        <CardHeader>
+          <CardTitle className="text-xl flex items-center gap-2">
+            <Trash2 className="h-5 w-5 text-red-500" /> Database Management
+          </CardTitle>
+          <CardDescription>
+            Export your data before clearing the database to keep using Supabase within the free tier limits
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <Button 
+              variant="outline" 
+              onClick={exportDatabase}
+              className="transition-all hover:shadow-md"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Full Database Backup
+            </Button>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="destructive"
+                  className="transition-all hover:shadow-md"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Database
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                    Clear All Data
+                  </DialogTitle>
+                  <DialogDescription>
+                    This action will delete all machine data from the database. 
+                    This cannot be undone. Make sure you've exported your data before proceeding.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button variant="outline" onClick={() => exportDatabase()}>Export First</Button>
+                  <Button variant="destructive" onClick={handleClearDatabase}>Yes, Clear All Data</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            <strong>Note:</strong> Clearing the database will remove all machine records. 
+            Make sure to export your data first if you need to keep it.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
