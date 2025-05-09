@@ -41,7 +41,7 @@ const TaskChecklist: React.FC<TaskChecklistProps> = ({ tasks, onTasksCompleted }
           <div 
             key={task.id} 
             className={cn(
-              "flex items-start space-x-2 p-3 rounded-md transition-colors",
+              "flex items-start space-x-3 p-3 rounded-md transition-colors",
               completedTasks.includes(task.id) 
                 ? "bg-primary/10" 
                 : "hover:bg-secondary"
@@ -51,11 +51,12 @@ const TaskChecklist: React.FC<TaskChecklistProps> = ({ tasks, onTasksCompleted }
               id={task.id}
               checked={completedTasks.includes(task.id)}
               onCheckedChange={(checked) => handleCheckboxChange(task.id, checked)}
+              className="mt-1"
             />
             <Label 
               htmlFor={task.id}
               className={cn(
-                "cursor-pointer text-sm leading-none pt-0.5",
+                "cursor-pointer text-base leading-tight", // Increased from text-sm to text-base
                 completedTasks.includes(task.id) && "line-through text-muted-foreground"
               )}
             >
