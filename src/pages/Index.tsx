@@ -84,12 +84,12 @@ const Index: React.FC = () => {
 
   return (
     <div className="container py-8 mx-auto min-h-screen">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 relative">
-        <div>
+      <div className="flex flex-col items-center mb-8 relative">
+        <div className="text-center">
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
-            Sewing Machine Service
+            ServiceTrack
           </h1>
-          <p className="text-muted-foreground mt-1 flex items-center">
+          <p className="text-muted-foreground mt-1 flex items-center justify-center">
             <Clock className="h-4 w-4 mr-1" />
             Last sync: {formatLastRefreshTime()}
           </p>
