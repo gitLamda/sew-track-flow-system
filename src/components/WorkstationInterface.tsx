@@ -20,8 +20,9 @@ import {
 import BarcodeScanner from "./BarcodeScanner";
 import TaskChecklist from "./TaskChecklist";
 import QueueDisplay from "./QueueDisplay";
+import OperatorManagement from "./OperatorManagement";
 import { WorkstationConfig } from "@/data/workstationTasks";
-import { operators } from "@/data/operators";
+import { getOperators } from "@/data/operators";
 import { 
   checkInMachine, 
   checkOutMachine, 
@@ -59,6 +60,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedOperator, setSelectedOperator] = useState<string>("");
+  const [operators, setOperators] = useState(getOperators());
   
   // Handle operator selection change
   const handleOperatorChange = (value: string) => {
@@ -68,6 +70,11 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       setOperatorName(selected.name);
       setOperatorEPF(selected.epfNumber);
     }
+  };
+  
+  // Refresh operators list when it might have changed
+  const refreshOperators = () => {
+    setOperators(getOperators());
   };
   
   // Force update queue when refresh is needed
@@ -316,32 +323,46 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Operator selection dropdown */}
-          <div className="grid">
-            <label className="text-sm font-medium mb-2 flex items-center" htmlFor="operatorSelect">
-              <User className="h-4 w-4 mr-2" />
-              Select Operator
-            </label>
-            <Select value={selectedOperator} onValueChange={handleOperatorChange}>
-              <SelectTrigger className="w-full" disabled={isProcessing}>
-                <SelectValue placeholder="Select an operator" />
-              </SelectTrigger>
-              <SelectContent>
-                {operators.map((operator) => (
-                  <SelectItem key={operator.epfNumber} value={operator.name}>
-                    {operator.name} (EPF: {operator.epfNumber})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Tabs for Operator selection and management */}
+          <Tabs defaultValue="select" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="select">Select Operator</TabsTrigger>
+              <TabsTrigger value="manage">Manage Operators</TabsTrigger>
+            </TabsList>
             
-            {selectedOperator && (
-              <div className="mt-2 p-2 bg-secondary/50 rounded-md text-sm">
-                <div className="font-medium">Selected: {operatorName}</div>
-                <div className="text-muted-foreground">EPF Number: {operatorEPF}</div>
+            <TabsContent value="select" className="space-y-4 pt-4">
+              {/* Operator selection dropdown */}
+              <div className="grid">
+                <label className="text-sm font-medium mb-2 flex items-center" htmlFor="operatorSelect">
+                  <User className="h-4 w-4 mr-2" />
+                  Select Operator
+                </label>
+                <Select value={selectedOperator} onValueChange={handleOperatorChange} onOpenChange={refreshOperators}>
+                  <SelectTrigger className="w-full" disabled={isProcessing}>
+                    <SelectValue placeholder="Select an operator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operators.map((operator) => (
+                      <SelectItem key={operator.epfNumber} value={operator.name}>
+                        {operator.name} (EPF: {operator.epfNumber})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {selectedOperator && (
+                  <div className="mt-2 p-2 bg-secondary/50 rounded-md text-sm">
+                    <div className="font-medium">Selected: {operatorName}</div>
+                    <div className="text-muted-foreground">EPF Number: {operatorEPF}</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </TabsContent>
+            
+            <TabsContent value="manage" className="pt-4">
+              <OperatorManagement />
+            </TabsContent>
+          </Tabs>
           
           {/* Scanner toggle section */}
           {!showScanner ? (
