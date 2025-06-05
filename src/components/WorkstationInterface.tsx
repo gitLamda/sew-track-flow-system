@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -207,12 +206,12 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   
   // Handle task completion
   const handleTasksCompleted = (taskIds: string[]) => {
-    // Convert task IDs to task names using the workstation's task list
-    const taskNames = taskIds.map(taskId => {
+    // Convert task IDs to task descriptions using the workstation's task list
+    const taskDescriptions = taskIds.map(taskId => {
       const task = workstation.tasks.find(t => t.id === taskId);
-      return task ? task.name : taskId; // Fallback to ID if task not found
+      return task ? task.description : taskId; // Fallback to ID if task not found
     });
-    setCompletedTasks(taskNames);
+    setCompletedTasks(taskDescriptions);
   };
   
   // Handle machine completion
