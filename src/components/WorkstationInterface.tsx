@@ -183,7 +183,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         setCompletedTasks([]);
       }
       
-      // Update the queue
+      // Update the queue immediately after scanning
       await loadQueue();
       setShowScanner(false);
     } catch (error) {
@@ -207,7 +207,12 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   
   // Handle task completion
   const handleTasksCompleted = (taskIds: string[]) => {
-    setCompletedTasks(taskIds);
+    // Convert task IDs to task names using the workstation's task list
+    const taskNames = taskIds.map(taskId => {
+      const task = workstation.tasks.find(t => t.id === taskId);
+      return task ? task.name : taskId; // Fallback to ID if task not found
+    });
+    setCompletedTasks(taskNames);
   };
   
   // Handle machine completion
@@ -217,11 +222,11 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     setIsProcessing(true);
     
     try {
-      // Check out the machine
+      // Check out the machine with task names instead of IDs
       const success = await checkOutMachine(
         activeMachine,
         workstation.stationNumber,
-        completedTasks,
+        completedTasks, // This now contains task names
         workstation.tasks.length
       );
       
