@@ -25,15 +25,9 @@ const Index: React.FC = () => {
     };
     document.addEventListener('dbUpdate', handleDbUpdate);
     
-    // Refresh every 30 seconds
-    const intervalId = setInterval(() => {
-      setLastRefresh(new Date());
-    }, 30000);
-    
-    // Cleanup
+    // Cleanup - removed auto-refresh interval
     return () => {
       unsubscribe();
-      clearInterval(intervalId);
       document.removeEventListener('dbUpdate', handleDbUpdate);
     };
   }, []);
@@ -74,7 +68,7 @@ const Index: React.FC = () => {
     toast.success("Data refreshed from storage");
   };
 
-  // Format time for display
+  // Format time for display - show local time
   const formatLastRefreshTime = () => {
     const hours = lastRefresh.getHours().toString().padStart(2, '0');
     const minutes = lastRefresh.getMinutes().toString().padStart(2, '0');

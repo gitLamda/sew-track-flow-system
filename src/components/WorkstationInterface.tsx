@@ -31,7 +31,7 @@ import {
   deleteMachine
 } from "@/utils/dataStorage";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Check, Info, Plus, Trash, User } from "lucide-react";
+import { AlertTriangle, Check, Info, Plus, Trash, User, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -91,19 +91,15 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     }
   };
 
-  // Load queue data on mount and when queue changes
+  // Load queue data on mount and listen for database changes
   useEffect(() => {
     refreshQueue();
     
-    // Refresh queue every 30 seconds
-    const intervalId = setInterval(refreshQueue, 30000);
-    
-    // Listen for database update events
+    // Listen for database update events (no auto-refresh intervals)
     const handleDbUpdate = () => refreshQueue();
     document.addEventListener('dbUpdate', handleDbUpdate);
     
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener('dbUpdate', handleDbUpdate);
     };
   }, [workstation.stationNumber, activeMachine]);
@@ -314,12 +310,24 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
               </CardTitle>
               <CardDescription>{workstation.stationName}</CardDescription>
             </div>
-            <Badge variant="outline" className="text-lg font-medium">
-              {isLoading ? "Loading..." : 
-                queue.length > 0 
-                  ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
-                  : (activeMachine ? "Active" : "Ready")}
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={refreshQueue}
+                disabled={isLoading}
+                className="glass-card transition-all hover:shadow-md"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Badge variant="outline" className="text-lg font-medium">
+                {isLoading ? "Loading..." : 
+                  queue.length > 0 
+                    ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
+                    : (activeMachine ? "Active" : "Ready")}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">

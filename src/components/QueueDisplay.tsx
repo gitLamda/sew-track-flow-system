@@ -54,7 +54,7 @@ const QueueDisplay: React.FC<QueueDisplayProps> = ({
     };
   }, [onQueueUpdate]);
 
-  // Format the check-in time
+  // Format the check-in time to show local time
   const formatTime = (timeString: string): string => {
     const date = new Date(timeString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

@@ -31,6 +31,11 @@ interface Database {
   lastUpdated: string;
 }
 
+// Helper function to get local timestamp
+const getLocalTimestamp = (): string => {
+  return new Date().toLocaleString('sv-SE'); // Swedish locale gives YYYY-MM-DD HH:mm:ss format
+};
+
 // Fetch all machine data from Supabase
 export const getDatabase = async (): Promise<Database> => {
   try {
@@ -90,7 +95,7 @@ export const getDatabase = async (): Promise<Database> => {
     
     return {
       machines,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: getLocalTimestamp()
     };
   } catch (error) {
     console.error("Error getting database:", error);
@@ -102,7 +107,7 @@ export const getDatabase = async (): Promise<Database> => {
 export const initializeDatabase = (): Database => {
   return {
     machines: {},
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: getLocalTimestamp(),
   };
 };
 
@@ -176,7 +181,7 @@ export const checkInMachine = async (
 ): Promise<{ isNew: boolean; waitTime: number | null }> => {
   try {
     const db = await getDatabase();
-    const now = new Date();
+    const now = getLocalTimestamp();
     
     // Calculate wait time if there are any active machines in this workstation
     let waitTime: number | null = null;
@@ -190,7 +195,7 @@ export const checkInMachine = async (
         currentWorkstation: workstation,
         completedWorkstations: [],
         records: [],
-        startTime: now.toISOString(),
+        startTime: now,
         endTime: null,
       };
       isNew = true;
@@ -214,7 +219,7 @@ export const checkInMachine = async (
       barcodeId,
       operator,
       workstation,
-      checkinTime: now.toISOString(),
+      checkinTime: now,
       checkoutTime: null,
       waitTime,
       tasksCompleted: [],
@@ -245,7 +250,7 @@ export const checkOutMachine = async (
 ): Promise<boolean> => {
   try {
     const db = await getDatabase();
-    const now = new Date();
+    const now = getLocalTimestamp();
     
     // Check if the machine exists and is in the correct workstation
     if (
@@ -267,7 +272,7 @@ export const checkOutMachine = async (
     }
     
     // Update the record
-    db.machines[barcodeId].records[currentRecordIndex].checkoutTime = now.toISOString();
+    db.machines[barcodeId].records[currentRecordIndex].checkoutTime = now;
     db.machines[barcodeId].records[currentRecordIndex].tasksCompleted = tasksCompleted;
     db.machines[barcodeId].records[currentRecordIndex].totalTasks = totalTasks;
     
@@ -277,7 +282,7 @@ export const checkOutMachine = async (
     
     // If this is the final workstation (6), mark the machine as complete
     if (workstation === 6) {
-      db.machines[barcodeId].endTime = now.toISOString();
+      db.machines[barcodeId].endTime = now;
     }
     
     // Save the database
@@ -471,7 +476,7 @@ export const clearDatabase = async (): Promise<void> => {
     }
     
     // Notify other components of the change
-    const event = new CustomEvent('dbUpdate', { detail: { timestamp: new Date().toISOString() } });
+    const event = new CustomEvent('dbUpdate', { detail: { timestamp: getLocalTimestamp() } });
     document.dispatchEvent(event);
     
     toast.success("Database cleared successfully");
@@ -491,7 +496,7 @@ export const setupRealtimeSubscription = () => {
       { event: '*', schema: 'public', table: 'machine_journeys' },
       () => {
         // Trigger a refresh event when data changes
-        const event = new CustomEvent('dbUpdate', { detail: { timestamp: new Date().toISOString() } });
+        const event = new CustomEvent('dbUpdate', { detail: { timestamp: getLocalTimestamp() } });
         document.dispatchEvent(event);
       }
     )
@@ -505,7 +510,7 @@ export const setupRealtimeSubscription = () => {
       { event: '*', schema: 'public', table: 'machine_records' },
       () => {
         // Trigger a refresh event when data changes
-        const event = new CustomEvent('dbUpdate', { detail: { timestamp: new Date().toISOString() } });
+        const event = new CustomEvent('dbUpdate', { detail: { timestamp: getLocalTimestamp() } });
         document.dispatchEvent(event);
       }
     )
