@@ -1,10 +1,9 @@
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { setupRealtimeSubscription } from "@/utils/dataStorage";
 
 interface QueueItem {
   barcodeId: string;
@@ -21,39 +20,14 @@ interface QueueDisplayProps {
   currentBarcodeId?: string | null;
   onSelectMachine?: (barcodeId: string) => void;
   onDeleteMachine?: (barcodeId: string) => void;
-  onQueueUpdate?: () => void;
 }
 
 const QueueDisplay: React.FC<QueueDisplayProps> = ({ 
   queue, 
   currentBarcodeId,
   onSelectMachine,
-  onDeleteMachine,
-  onQueueUpdate
+  onDeleteMachine
 }) => {
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  
-  // Set up realtime subscription to listen for database changes
-  useEffect(() => {
-    const unsubscribe = setupRealtimeSubscription();
-    
-    // Listen for custom dbUpdate events
-    const handleDbUpdate = () => {
-      setLastUpdate(new Date());
-      if (onQueueUpdate) {
-        onQueueUpdate();
-      }
-    };
-    
-    document.addEventListener('dbUpdate', handleDbUpdate);
-    
-    // Cleanup
-    return () => {
-      unsubscribe();
-      document.removeEventListener('dbUpdate', handleDbUpdate);
-    };
-  }, [onQueueUpdate]);
-
   // Format the check-in time to show local time
   const formatTime = (timeString: string): string => {
     const date = new Date(timeString);

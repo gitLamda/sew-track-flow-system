@@ -1,36 +1,18 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import WorkstationInterface from "@/components/WorkstationInterface";
 import DataViewer from "@/components/DataViewer";
 import { workstationTasks } from "@/data/workstationTasks";
-import { exportDatabase, importDatabase, setupRealtimeSubscription } from "@/utils/dataStorage";
+import { exportDatabase, importDatabase } from "@/utils/dataStorage";
 import { toast } from "sonner";
-import { Database, RefreshCw, Download, Upload, Clock } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const Index: React.FC = () => {
   const [activeWorkstation, setActiveWorkstation] = useState<number>(1);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  
-  // Set up realtime subscription
-  useEffect(() => {
-    const unsubscribe = setupRealtimeSubscription();
-    
-    // Listen for database update events
-    const handleDbUpdate = () => {
-      setLastRefresh(new Date());
-    };
-    document.addEventListener('dbUpdate', handleDbUpdate);
-    
-    // Cleanup - removed auto-refresh interval
-    return () => {
-      unsubscribe();
-      document.removeEventListener('dbUpdate', handleDbUpdate);
-    };
-  }, []);
   
   // Get the workstation configuration for the active workstation
   const workstation = workstationTasks.find(ws => ws.stationNumber === activeWorkstation)!;
@@ -47,8 +29,6 @@ const Index: React.FC = () => {
         const success = await importDatabase(jsonData);
         
         if (success) {
-          // Refresh the page to load the imported data
-          setLastRefresh(new Date());
           toast.success("Data imported successfully");
         }
       } catch (error) {
@@ -62,20 +42,6 @@ const Index: React.FC = () => {
     event.target.value = '';
   };
 
-  // Manual refresh function
-  const handleManualRefresh = () => {
-    setLastRefresh(new Date());
-    toast.success("Data refreshed from storage");
-  };
-
-  // Format time for display - show local time
-  const formatLastRefreshTime = () => {
-    const hours = lastRefresh.getHours().toString().padStart(2, '0');
-    const minutes = lastRefresh.getMinutes().toString().padStart(2, '0');
-    const seconds = lastRefresh.getSeconds().toString().padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-  };
-
   return (
     <div className="container py-8 mx-auto min-h-screen">
       <div className="flex flex-col items-center mb-8 relative">
@@ -83,23 +49,13 @@ const Index: React.FC = () => {
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
             ServiceTrack
           </h1>
-          <p className="text-muted-foreground mt-1 flex items-center justify-center">
-            <Clock className="h-4 w-4 mr-1" />
-            Last sync: {formatLastRefreshTime()}
+          <p className="text-muted-foreground mt-1">
+            Machine Service Management System
           </p>
         </div>
         
         <div className="flex mt-4 sm:mt-0 space-x-3 items-center">
           <ThemeToggle />
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleManualRefresh}
-            className="glass-card transition-all hover:shadow-md"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
           <Button 
             variant="outline" 
             size="sm" 
@@ -166,7 +122,7 @@ const Index: React.FC = () => {
           {/* Active workstation interface */}
           <WorkstationInterface 
             workstation={workstation} 
-            key={`ws-${workstation.stationNumber}-${lastRefresh.getTime()}`} 
+            key={`ws-${workstation.stationNumber}`} 
           />
         </TabsContent>
         
@@ -180,14 +136,6 @@ const Index: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-4">
-                <Button 
-                  variant="secondary" 
-                  onClick={handleManualRefresh}
-                  className="transition-all hover:shadow-md"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Data
-                </Button>
                 <Button 
                   variant="secondary" 
                   onClick={exportDatabase}
@@ -216,7 +164,7 @@ const Index: React.FC = () => {
             </CardContent>
           </Card>
           
-          <DataViewer key={`data-viewer-${lastRefresh.getTime()}`} />
+          <DataViewer />
         </TabsContent>
       </Tabs>
     </div>

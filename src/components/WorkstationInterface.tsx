@@ -31,7 +31,7 @@ import {
   deleteMachine
 } from "@/utils/dataStorage";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Check, Info, Plus, Trash, User, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, Info, Plus, Trash, User } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -58,7 +58,6 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showScanner, setShowScanner] = useState<boolean>(false);
   const [machineToDelete, setMachineToDelete] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedOperator, setSelectedOperator] = useState<string>("");
   const [operators, setOperators] = useState(getOperators());
   
@@ -77,32 +76,21 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     setOperators(getOperators());
   };
   
-  // Force update queue when refresh is needed
-  const refreshQueue = async () => {
-    setIsLoading(true);
+  // Load initial queue data
+  const loadQueue = async () => {
     try {
       const queueData = await getQueueForWorkstation(workstation.stationNumber);
       setQueue(queueData);
     } catch (error) {
-      console.error("Error refreshing queue:", error);
-      toast.error("Failed to refresh queue data");
-    } finally {
-      setIsLoading(false);
+      console.error("Error loading queue:", error);
+      toast.error("Failed to load queue data");
     }
   };
 
-  // Load queue data on mount and listen for database changes
+  // Load queue data on mount
   useEffect(() => {
-    refreshQueue();
-    
-    // Listen for database update events (no auto-refresh intervals)
-    const handleDbUpdate = () => refreshQueue();
-    document.addEventListener('dbUpdate', handleDbUpdate);
-    
-    return () => {
-      document.removeEventListener('dbUpdate', handleDbUpdate);
-    };
-  }, [workstation.stationNumber, activeMachine]);
+    loadQueue();
+  }, [workstation.stationNumber]);
   
   // Load operator info from localStorage if available
   useEffect(() => {
@@ -196,7 +184,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       }
       
       // Update the queue
-      await refreshQueue();
+      await loadQueue();
       setShowScanner(false);
     } catch (error) {
       console.error("Error checking in machine:", error);
@@ -211,9 +199,6 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     if (isProcessing) return;
     
     if (activeMachine === barcodeId) return;
-    
-    // Save the current progress if needed
-    // For now we're just switching machines without saving partial progress
     
     setActiveMachine(barcodeId);
     setCompletedTasks([]);
@@ -250,7 +235,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         }
         
         // Find the next machine in queue if any
-        await refreshQueue();
+        await loadQueue();
         
         // Set the next machine in queue as active if available
         const nextMachine = queue.find(item => item.barcodeId !== activeMachine);
@@ -288,7 +273,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         }
         
         // Update the queue
-        await refreshQueue();
+        await loadQueue();
       }
     } catch (error) {
       console.error("Error deleting machine:", error);
@@ -311,21 +296,10 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
               <CardDescription>{workstation.stationName}</CardDescription>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={refreshQueue}
-                disabled={isLoading}
-                className="glass-card transition-all hover:shadow-md"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
               <Badge variant="outline" className="text-lg font-medium">
-                {isLoading ? "Loading..." : 
-                  queue.length > 0 
-                    ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
-                    : (activeMachine ? "Active" : "Ready")}
+                {queue.length > 0 
+                  ? `${activeMachine ? "Active" : "Ready"} (${queue.length} in queue)`
+                  : (activeMachine ? "Active" : "Ready")}
               </Badge>
             </div>
           </div>
@@ -469,7 +443,6 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 currentBarcodeId={activeMachine}
                 onSelectMachine={handleSwitchMachine}
                 onDeleteMachine={(barcodeId) => setMachineToDelete(barcodeId)}
-                onQueueUpdate={refreshQueue}
               />
             </TabsContent>
           </Tabs>
@@ -477,12 +450,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         
         {/* Information messages */}
         <CardFooter className="border-t bg-secondary/50">
-          {isLoading ? (
-            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-              <Info className="h-5 w-5 text-blue-500 mt-0.5" />
-              <div>Loading workstation data...</div>
-            </div>
-          ) : !operatorName || !operatorEPF ? (
+          {!operatorName || !operatorEPF ? (
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
               <div>
