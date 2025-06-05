@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { 
   Card, 
@@ -84,6 +85,14 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       console.error("Error loading queue:", error);
       toast.error("Failed to load queue data");
     }
+  };
+
+  // Auto refresh queue after a short delay
+  const autoRefreshQueue = () => {
+    setTimeout(async () => {
+      console.log("Auto-refreshing queue after scan...");
+      await loadQueue();
+    }, 500); // 500ms delay to ensure backend processing is complete
   };
 
   // Load queue data on mount
@@ -184,6 +193,10 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
       
       // Update the queue immediately after scanning
       await loadQueue();
+      
+      // Auto-refresh queue after a short delay to ensure UI updates
+      autoRefreshQueue();
+      
       setShowScanner(false);
     } catch (error) {
       console.error("Error checking in machine:", error);
