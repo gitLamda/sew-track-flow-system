@@ -79,20 +79,14 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
   // Load initial queue data
   const loadQueue = async () => {
     try {
+      console.log("Loading queue for workstation", workstation.stationNumber);
       const queueData = await getQueueForWorkstation(workstation.stationNumber);
+      console.log("Queue data loaded:", queueData);
       setQueue(queueData);
     } catch (error) {
       console.error("Error loading queue:", error);
       toast.error("Failed to load queue data");
     }
-  };
-
-  // Auto refresh queue after a short delay
-  const autoRefreshQueue = () => {
-    setTimeout(async () => {
-      console.log("Auto-refreshing queue after scan...");
-      await loadQueue();
-    }, 500); // 500ms delay to ensure backend processing is complete
   };
 
   // Load queue data on mount
@@ -191,11 +185,11 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
         setCompletedTasks([]);
       }
       
-      // Update the queue immediately after scanning
-      await loadQueue();
-      
-      // Auto-refresh queue after a short delay to ensure UI updates
-      autoRefreshQueue();
+      // Force refresh the queue with a slight delay to ensure backend processing is complete
+      setTimeout(async () => {
+        console.log("Force refreshing queue after successful scan...");
+        await loadQueue();
+      }, 300);
       
       setShowScanner(false);
     } catch (error) {
@@ -234,11 +228,11 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
     setIsProcessing(true);
     
     try {
-      // Check out the machine with task names instead of IDs
+      // Check out the machine with task descriptions instead of IDs
       const success = await checkOutMachine(
         activeMachine,
         workstation.stationNumber,
-        completedTasks, // This now contains task names
+        completedTasks, // This now contains task descriptions
         workstation.tasks.length
       );
       
@@ -430,7 +424,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
           )}
           
           {/* Tabs for Tasks and Queue */}
-          <Tabs defaultValue={activeMachine ? "tasks" : "queue"}>
+          <Tabs defaultValue={activeMachine ? "tasks" : "queue"} key={`tabs-${queue.length}-${activeMachine}`}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="tasks" disabled={!activeMachine}>Tasks</TabsTrigger>
               <TabsTrigger value="queue">Queue ({queue.length})</TabsTrigger>
@@ -460,6 +454,7 @@ const WorkstationInterface: React.FC<WorkstationInterfaceProps> = ({ workstation
                 currentBarcodeId={activeMachine}
                 onSelectMachine={handleSwitchMachine}
                 onDeleteMachine={(barcodeId) => setMachineToDelete(barcodeId)}
+                key={`queue-${queue.length}-${Date.now()}`}
               />
             </TabsContent>
           </Tabs>
